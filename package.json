@@ -10,7 +10,7 @@
   "author": "Igor Shmidt",
   "license": "ISC",
   "dependencies": {
-    "faker": "^5.1.0",
+    "faker": "^5.5.3",
     "mongodb": "^3.3.5",
     "prettier": "^2.1.1"
   }
