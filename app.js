@@ -1,10 +1,10 @@
 'use strict'
 const students = require('./students.json');
-const { mapUser, getRandomFirstName } = require('./util')
+const { mapUser, getRandomFirstName, mapArticle } = require('./util')
 
 // db connection and settings
 const connection = require('./config/connection')
-let userCollection, studentCollection
+let userCollection, studentCollection, articleCollection
 run()
 
 async function run() {
@@ -17,6 +17,11 @@ async function run() {
   //await connection.get().createCollection('students')
   studentCollection = connection.get().collection('students')
 
+  //await connection.get().dropCollection('articles')
+  //await connection.get().createCollection('articles')
+  articleCollection = connection.get().collection('articles')
+
+
   //await example1()
   //await example2()
   //await example3()
@@ -24,12 +29,14 @@ async function run() {
   //await example5()
   //await example6()
   //await example7()
-  await example8()
+  //await example8()
   //await example10()
+  await example16()
+
   await connection.close()
 }
 
-// #### Users
+// -----------  Users Tasks ----------------
 
 // - Create 2 users per department (a, b, c)
 async function example1() {
@@ -81,6 +88,8 @@ async function example4() {
   }
 }
 
+//------------Students tasks---------------
+
 // Import all data from students.json into student collection
 
 async function example5() {
@@ -91,6 +100,7 @@ async function example5() {
     console.log(e);
   }
 }
+
 
 //Find all students who have the worst score for homework, sort by descent
 async function example6() {
@@ -135,25 +145,25 @@ async function example8() {
   try {
     const res = await studentCollection.aggregate([
       {
-        $addFields:{
+        $addFields: {
           examScores: {
-            $arrayElemAt:["$scores",0]
+            $arrayElemAt: ["$scores", 0]
           },
           quizScores: {
-            $arrayElemAt:["$scores",1]
+            $arrayElemAt: ["$scores", 1]
           }
         }
       },
       {
-        $addFields:{
+        $addFields: {
           totalScore: {
-            $add: ["$examScores.score","$quizScores.score"]
+            $add: ["$examScores.score", "$quizScores.score"]
           }
         }
       },
       {
         $sort: {
-          totalScore:-1
+          totalScore: -1
         }
       }
     ]).toArray();
@@ -232,3 +242,72 @@ async function example11() {
   }
 }
 
+//-------------Articles task---------------
+
+//Create 5 articles per each type (a, b, c)
+async function example12() {
+  try {
+    const types = ['a', 'a', 'a', 'a', 'a', 'b', 'b', 'b', 'b', 'b', 'c', 'c', 'c', 'c', 'c'];
+    const articles = types.map(t => ({ type: t })).map(mapArticle)
+    try {
+      const { res } = await articleCollection.insertMany(articles)
+    }
+    catch (e) {
+      console.log(e)
+    }
+  }
+  catch (e) {
+    console.log(e);
+  }
+}
+
+// Find articles with type a, and update tag list with next value [‘tag1-a’, ‘tag2-a’, ‘tag3’]
+async function example13() {
+  try {
+    const articles = await articleCollection.find({ type: 'a' }).toArray();
+    const bulkWrite = articles.map(article => ({
+      updateOne: {
+        filter: { _id: article._id },
+        update: { $set: { tags: ['tag1-a', 'tag2-a', 'tag3'] } }
+      }
+    }))
+    const { res } = await articleCollection.bulkWrite(bulkWrite);
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+//Add tags [‘tag2’, ‘tag3’, ‘super’] to other articles except articles from type a
+async function example14() {
+  try {
+    const allArticlesExceptA = await articleCollection.find({ type: { $ne: 'a' } }).toArray();
+    const bulkWrite = allArticlesExceptA.map(articles => ({
+      updateOne: {
+        filter: { _id: articles._id },
+        update: { $set: { tags: ['tag2', 'tag3', 'super'] } }
+      }
+    }))
+    const { res } = await articleCollection.bulkWrite(bulkWrite);
+  } catch (e) {
+    console.error(e)
+
+  }
+}
+//Find all articles that contains tags [tag2, tag1-a]
+async function example15() {
+  try {
+    const res = await articleCollection.find({ tags: { $in: ['tag2', 'tag1-a'] } }).toArray();
+    console.log(res);
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+//- Pull [tag2, tag1-a] from all articles
+async function example16() {
+  try {
+    const res = await articleCollection.updateMany({}, { $pull: { tags: { $in: ['tag2', 'tag1-a'] } } });
+  } catch (e) {
+    console.error(e)
+  }
+}
